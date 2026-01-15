@@ -30,14 +30,15 @@ export const FavoriteAliasEditor = ({
 
   if (!isEditing) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-600">
+      <div className="flex items-center justify-between w-full">
+        <span className="text-sm text-gray-600 flex-1">
           {currentAlias || "별칭 없음"}
         </span>
         <Button
           size="sm"
           variant="secondary"
           onClick={() => setIsEditing(true)}
+          className="flex-shrink-0"
         >
           수정
         </Button>
@@ -46,20 +47,27 @@ export const FavoriteAliasEditor = ({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
       <Input
         value={alias}
         onChange={(e) => setAlias(e.target.value)}
         placeholder="별칭 입력"
-        className="flex-1"
+        className="flex-1 min-w-0"
         autoFocus
       />
-      <Button size="sm" onClick={handleSave}>
-        저장
-      </Button>
-      <Button size="sm" variant="secondary" onClick={handleCancel}>
-        취소
-      </Button>
+      <div className="flex gap-2 flex-shrink-0">
+        <Button size="sm" onClick={handleSave} className="flex-1 sm:flex-none">
+          저장
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleCancel}
+          className="flex-1 sm:flex-none"
+        >
+          취소
+        </Button>
+      </div>
     </div>
   );
 };

@@ -51,21 +51,39 @@ const convertToGrid = (
   return { nx, ny };
 };
 
-// 초단기실황조회용 base_time (30분 단위: 0030, 0130, ...)
+// 초단기실황조회용 base_time (30분 단위: 0030, 0130)
 const getBaseDateTime = () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
-  const hour = String(now.getHours()).padStart(2, "0");
+  const hour = now.getHours();
   const minute = now.getMinutes();
 
-  // 가장 가까운 30분 이전 시간으로 설정
-  let baseMinute = minute < 30 ? "00" : "30";
+  // 초단기실황조회는 매 시간 30분에 데이터 생성
+  // 현재 시간이 30분 이전이면 이전 시간의 30분 데이터 사용
+  let baseHour = hour;
+  let baseMinute = "30";
+
+  if (minute < 30) {
+    // 30분 이전이면 이전 시간의 30분 데이터 사용
+    baseHour = hour - 1;
+    if (baseHour < 0) {
+      // 자정 이전이면 전날 23:30 사용
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return {
+        baseDate: `${yesterday.getFullYear()}${String(
+          yesterday.getMonth() + 1
+        ).padStart(2, "0")}${String(yesterday.getDate()).padStart(2, "0")}`,
+        baseTime: "2330",
+      };
+    }
+  }
 
   return {
     baseDate: `${year}${month}${day}`,
-    baseTime: `${hour}${baseMinute}`,
+    baseTime: `${String(baseHour).padStart(2, "0")}${baseMinute}`,
   };
 };
 
