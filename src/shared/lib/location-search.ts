@@ -217,24 +217,66 @@ export const findNearestDistrict = async (
     const districts = await loadDistrictsData();
     if (districts.length === 0) return null;
 
-    // 동 단위 주소만 필터링 (읍면동이 있는 주소)
+    // 1단계: 현재 좌표가 속한 시도 판단
+    const sidoCoordinates: { [key: string]: { lat: number; lon: number } } = {
+      서울특별시: { lat: 37.5665, lon: 126.978 },
+      부산광역시: { lat: 35.1796, lon: 129.0756 },
+      대구광역시: { lat: 35.8714, lon: 128.6014 },
+      인천광역시: { lat: 37.4563, lon: 126.7052 },
+      광주광역시: { lat: 35.1595, lon: 126.8526 },
+      대전광역시: { lat: 36.3504, lon: 127.3845 },
+      울산광역시: { lat: 35.5384, lon: 129.3114 },
+      세종특별자치시: { lat: 36.48, lon: 127.289 },
+      경기도: { lat: 37.4138, lon: 127.5183 },
+      강원특별자치도: { lat: 37.8228, lon: 128.1555 },
+      강원도: { lat: 37.8228, lon: 128.1555 },
+      충청북도: { lat: 36.8, lon: 127.7 },
+      충청남도: { lat: 36.5184, lon: 126.8 },
+      전북특별자치도: { lat: 35.7175, lon: 127.153 },
+      전라북도: { lat: 35.7175, lon: 127.153 },
+      전라남도: { lat: 34.8679, lon: 126.991 },
+      경상북도: { lat: 36.4919, lon: 128.8889 },
+      경상남도: { lat: 35.4606, lon: 128.2132 },
+      제주특별자치도: { lat: 33.4996, lon: 126.5312 },
+      제주도: { lat: 33.4996, lon: 126.5312 },
+    };
+
+    // 가장 가까운 시도 찾기
+    let nearestSidoDistance = Infinity;
+    let targetSido: string | null = null;
+
+    for (const [sido, coords] of Object.entries(sidoCoordinates)) {
+      const distance = Math.sqrt(
+        Math.pow(coords.lat - lat, 2) + Math.pow(coords.lon - lon, 2)
+      );
+      if (distance < nearestSidoDistance) {
+        nearestSidoDistance = distance;
+        targetSido = sido;
+      }
+    }
+
+    // 2단계: 해당 시도의 동 단위 주소만 필터링
     const dongLevelAddresses = districts.filter((address) => {
       const parsed = parseAddress(address);
-      return !!parsed.읍면동;
+      return !!parsed.읍면동 && parsed.시도 === targetSido;
     });
 
     if (dongLevelAddresses.length === 0) {
-      // 동 단위가 없으면 시군구 단위로 찾기
+      // 동 단위가 없으면 해당 시도의 시군구 단위로 찾기
       const guLevelAddresses = districts.filter((address) => {
         const parsed = parseAddress(address);
-        return !!parsed.시군구 && !parsed.읍면동;
+        return (
+          !!parsed.시군구 &&
+          !parsed.읍면동 &&
+          parsed.시도 === targetSido
+        );
       });
 
       if (guLevelAddresses.length === 0) {
         // 시군구도 없으면 시도만 반환
         const sidoAddresses = districts.filter((address) => {
           const parsed = parseAddress(address);
-          return !parsed.시군구 && !parsed.읍면동;
+          return parsed.시도 === targetSido && !parsed.시군구 && !parsed.읍면동;
         });
         return sidoAddresses[0] || null;
       }
@@ -258,7 +300,7 @@ export const findNearestDistrict = async (
       return nearestAddress;
     }
 
-    // 동 단위 주소 중에서 가장 가까운 것 찾기
+    // 3단계: 해당 시도의 동 단위 주소 중에서 가장 가까운 것 찾기
     let nearestDistance = Infinity;
     let nearestAddress: string | null = null;
 
