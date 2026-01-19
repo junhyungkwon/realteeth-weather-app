@@ -73,7 +73,7 @@ export const WeatherInfo = ({ weather, locationName }: WeatherInfoProps) => {
       <div className="bg-white rounded-xl p-6 shadow-md">
         <h3 className="text-lg font-semibold mb-4">24시간 기온</h3>
         <div className="overflow-x-auto">
-          <div className="flex gap-4 min-w-max">
+          <div className="flex gap-20 min-w-max">
             {hourly.map((hour, index) => (
               <div
                 key={index}
