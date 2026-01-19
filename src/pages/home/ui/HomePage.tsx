@@ -3,6 +3,7 @@ import { useGeolocation } from "@/shared/hooks/use-geolocation";
 import { useWeather } from "@/entities/weather/hooks/use-weather";
 import { LocationSearch } from "@/features/location-search/ui/LocationSearch";
 import type { Location } from "@/shared/lib/location-search";
+import { findNearestDistrict, formatAddressForDisplay } from "@/shared/lib/location-search";
 import { WeatherInfo } from "@/features/weather-display/ui/WeatherInfo";
 import { FavoriteButton } from "@/features/favorites/ui/FavoriteButton";
 import { LoadingSpinner } from "@/shared/ui/LoadingSpinner";
@@ -15,6 +16,7 @@ export const HomePage = () => {
     null
   );
   const [favoritesCount, setFavoritesCount] = useState(0);
+  const [currentAddress, setCurrentAddress] = useState<string | null>(null);
 
   // 선택된 위치 또는 현재 위치의 좌표 사용
   const currentLat = selectedLocation?.lat ?? lat;
@@ -26,6 +28,18 @@ export const HomePage = () => {
     isLoading: weatherLoading,
     error: weatherError,
   } = useWeather(currentLat, currentLon);
+
+  // 현재 위치의 주소 가져오기
+  useEffect(() => {
+    if (lat && lon && !selectedLocation) {
+      findNearestDistrict(lat, lon).then((address) => {
+        const formattedAddress = formatAddressForDisplay(address);
+        setCurrentAddress(formattedAddress);
+      });
+    } else if (selectedLocation) {
+      setCurrentAddress(null);
+    }
+  }, [lat, lon, selectedLocation]);
 
   // Geolocation 에러를 무시하고 조용히 처리
   useEffect(() => {
@@ -81,7 +95,7 @@ export const HomePage = () => {
     ? selectedLocation.fullName
     : geoError
     ? "위치를 찾을 수 없습니다"
-    : "현재 위치";
+    : currentAddress || "현재 위치";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -134,9 +148,14 @@ export const HomePage = () => {
           </div>
         )}
 
-        {weather && (
+{weather && (
           <div>
             <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {locationName}
+                </h2>
+              </div>
               {selectedLocation && (
                 <FavoriteButton
                   location={selectedLocation}
@@ -146,7 +165,7 @@ export const HomePage = () => {
                 />
               )}
             </div>
-            <WeatherInfo weather={weather} locationName={locationName} />
+            <WeatherInfo weather={weather} />
           </div>
         )}
       </div>

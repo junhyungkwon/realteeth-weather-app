@@ -3,20 +3,15 @@ import { formatTime } from "@/shared/lib/format-date";
 
 interface WeatherInfoProps {
   weather: WeatherData;
-  locationName?: string;
 }
 
-export const WeatherInfo = ({ weather, locationName }: WeatherInfoProps) => {
+export const WeatherInfo = ({ weather }: WeatherInfoProps) => {
   const current = weather.current;
   const today = weather.daily[0];
   const hourly = weather.hourly.slice(0, 24);
 
   return (
     <div className="space-y-6">
-      {locationName && (
-        <h2 className="text-2xl font-bold text-gray-900">{locationName}</h2>
-      )}
-
       {/* 현재 날씨 */}
       <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-6 text-white">
         <div className="flex items-center justify-between">

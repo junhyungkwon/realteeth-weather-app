@@ -59,7 +59,7 @@ export const LocationDetailPage = () => {
               </h1>
               <FavoriteButton location={location} onToggle={() => {}} />
             </div>
-            <WeatherInfo weather={weather} locationName={location.fullName} />
+            <WeatherInfo weather={weather}/>
           </div>
         )}
       </div>

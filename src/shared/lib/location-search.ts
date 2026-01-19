@@ -19,7 +19,7 @@ export const loadDistrictsData = async (): Promise<string[]> => {
     }
     const data = await response.json();
     districtsData = data;
-    return data; // districtsData 대신 data를 직접 반환
+    return data;
   } catch (error) {
     console.error("행정구역 데이터 로드 실패:", error);
     return [];
@@ -77,6 +77,62 @@ const getDefaultCoordinates = (
   return { lat: 37.5665, lon: 126.978 };
 };
 
+// 시군구별 대표 좌표 매핑 (주요 지역)
+const getGuCoordinates = (
+  address: string
+): { lat: number; lon: number } | null => {
+  const parsed = parseAddress(address);
+
+  // 서울 주요 구별 좌표
+  const seoulGuCoords: { [key: string]: { lat: number; lon: number } } = {
+    강남구: { lat: 37.5172, lon: 127.0473 },
+    강동구: { lat: 37.5301, lon: 127.1238 },
+    강북구: { lat: 37.6398, lon: 127.0253 },
+    강서구: { lat: 37.5509, lon: 126.8495 },
+    관악구: { lat: 37.4784, lon: 126.9516 },
+    광진구: { lat: 37.5384, lon: 127.0821 },
+    구로구: { lat: 37.4954, lon: 126.8874 },
+    금천구: { lat: 37.4519, lon: 126.9020 },
+    노원구: { lat: 37.6542, lon: 127.0568 },
+    도봉구: { lat: 37.6688, lon: 127.0471 },
+    동대문구: { lat: 37.5744, lon: 127.0396 },
+    동작구: { lat: 37.5124, lon: 126.9393 },
+    마포구: { lat: 37.5663, lon: 126.9019 },
+    서대문구: { lat: 37.5791, lon: 126.9368 },
+    서초구: { lat: 37.4837, lon: 127.0324 },
+    성동구: { lat: 37.5633, lon: 127.0366 },
+    성북구: { lat: 37.5894, lon: 127.0167 },
+    송파구: { lat: 37.5145, lon: 127.1058 },
+    양천구: { lat: 37.5170, lon: 126.8664 },
+    영등포구: { lat: 37.5264, lon: 126.8962 },
+    용산구: { lat: 37.5326, lon: 126.9905 },
+    은평구: { lat: 37.6027, lon: 126.9291 },
+    종로구: { lat: 37.5735, lon: 126.9788 },
+    중구: { lat: 37.5640, lon: 126.9970 },
+    중랑구: { lat: 37.6064, lon: 127.0926 },
+  };
+
+  if (parsed.시도 === "서울특별시" && parsed.시군구 && seoulGuCoords[parsed.시군구]) {
+    return seoulGuCoords[parsed.시군구];
+  }
+
+  return null;
+};
+
+// 개선된 좌표 가져오기 함수
+const getImprovedCoordinates = (
+  address: string
+): { lat: number; lon: number } => {
+  // 시군구별 좌표가 있으면 사용
+  const guCoords = getGuCoordinates(address);
+  if (guCoords) {
+    return guCoords;
+  }
+
+  // 없으면 기본 좌표 사용
+  return getDefaultCoordinates(address);
+};
+
 // 좌표 캐시 (메모리 기반)
 const coordinatesCache = new Map<string, { lat: number; lon: number }>();
 
@@ -128,8 +184,8 @@ export const searchLocations = async (query: string): Promise<Location[]> => {
     // 캐시 확인
     let coords = coordinatesCache.get(address);
     if (!coords) {
-      // 대표 좌표 사용 (빠른 처리)
-      coords = getDefaultCoordinates(address);
+      // 개선된 좌표 사용
+      coords = getImprovedCoordinates(address);
       coordinatesCache.set(address, coords);
     }
 
@@ -150,4 +206,106 @@ export const searchLocations = async (query: string): Promise<Location[]> => {
     if (!aExact && bExact) return 1;
     return a.fullName.localeCompare(b.fullName);
   });
+};
+
+// 좌표로 가장 가까운 행정구역 찾기 (개선된 버전)
+export const findNearestDistrict = async (
+  lat: number,
+  lon: number
+): Promise<string | null> => {
+  try {
+    const districts = await loadDistrictsData();
+    if (districts.length === 0) return null;
+
+    // 동 단위 주소만 필터링 (읍면동이 있는 주소)
+    const dongLevelAddresses = districts.filter((address) => {
+      const parsed = parseAddress(address);
+      return !!parsed.읍면동;
+    });
+
+    if (dongLevelAddresses.length === 0) {
+      // 동 단위가 없으면 시군구 단위로 찾기
+      const guLevelAddresses = districts.filter((address) => {
+        const parsed = parseAddress(address);
+        return !!parsed.시군구 && !parsed.읍면동;
+      });
+
+      if (guLevelAddresses.length === 0) {
+        // 시군구도 없으면 시도만 반환
+        const sidoAddresses = districts.filter((address) => {
+          const parsed = parseAddress(address);
+          return !parsed.시군구 && !parsed.읍면동;
+        });
+        return sidoAddresses[0] || null;
+      }
+
+      // 시군구 중에서 가장 가까운 것 찾기
+      let nearestDistance = Infinity;
+      let nearestAddress: string | null = null;
+
+      for (const address of guLevelAddresses) {
+        const coords = getImprovedCoordinates(address);
+        const distance = Math.sqrt(
+          Math.pow(coords.lat - lat, 2) + Math.pow(coords.lon - lon, 2)
+        );
+
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestAddress = address;
+        }
+      }
+
+      return nearestAddress;
+    }
+
+    // 동 단위 주소 중에서 가장 가까운 것 찾기
+    let nearestDistance = Infinity;
+    let nearestAddress: string | null = null;
+
+    for (const address of dongLevelAddresses) {
+      const coords = getImprovedCoordinates(address);
+      const distance = Math.sqrt(
+        Math.pow(coords.lat - lat, 2) + Math.pow(coords.lon - lon, 2)
+      );
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestAddress = address;
+      }
+    }
+
+    return nearestAddress;
+  } catch (error) {
+    console.error("가장 가까운 행정구역 찾기 실패:", error);
+    return null;
+  }
+};
+
+// 주소를 표시 형식으로 변환 (특별시/광역시는 시도-시군구-동, 일반 도는 시도-시군구-읍면동)
+export const formatAddressForDisplay = (
+  address: string | null
+): string | null => {
+  if (!address) return null;
+
+  const parsed = parseAddress(address);
+
+  // 특별시/광역시/특별자치시 체크
+  const isMetropolitan =
+    parsed.시도.includes("특별시") ||
+    parsed.시도.includes("광역시") ||
+    parsed.시도.includes("특별자치시");
+
+  if (isMetropolitan) {
+    // 특별시/광역시: 시도-시군구-동
+    const parts = [parsed.시도];
+    if (parsed.시군구) parts.push(parsed.시군구);
+    if (parsed.읍면동) parts.push(parsed.읍면동);
+    return parts.join(" ");
+  } else {
+    // 일반 도: 시도-시군구-읍면동 전체 표시
+    const parts = [parsed.시도];
+    if (parsed.시군구) parts.push(parsed.시군구);
+    if (parsed.읍면동) parts.push(parsed.읍면동);
+    return parts.join(" ");
+  }
 };
