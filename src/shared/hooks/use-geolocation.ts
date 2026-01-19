@@ -36,9 +36,8 @@ export const useGeolocation = () => {
             loading: false,
           });
         },
-        (error) => {
+        (_error) => {
           // 에러를 조용히 처리 (콘솔에 로그하지 않음)
-          // 에러 타입에 따라 다르게 처리
           setState({
             lat: null,
             lon: null,
@@ -52,7 +51,7 @@ export const useGeolocation = () => {
           maximumAge: 300000, // 5분간 캐시 사용
         }
       );
-    } catch (error) {
+    } catch (_error) {
       // 예상치 못한 에러도 조용히 처리
       setState({
         lat: null,

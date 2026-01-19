@@ -17,8 +17,9 @@ export const loadDistrictsData = async (): Promise<string[]> => {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    districtsData = await response.json();
-    return districtsData;
+    const data = await response.json();
+    districtsData = data;
+    return data; // districtsData 대신 data를 직접 반환
   } catch (error) {
     console.error("행정구역 데이터 로드 실패:", error);
     return [];
@@ -37,37 +38,7 @@ const parseAddress = (
   };
 };
 
-// 공공데이터포털 행정구역 좌표 API 사용
-// 참고: 실제 API 엔드포인트는 공공데이터포털에서 확인 필요
-const getCoordinatesFromPublicAPI = async (
-  address: string
-): Promise<{ lat: number; lon: number } | null> => {
-  const API_KEY =
-    import.meta.env.VITE_WEATHER_API_KEY ||
-    "TWH8Edh6MqUvBvGucuCxxzLf26%2BS2yi9zimLaXrTjLZgHvbZ8WMO8G4Gfhd7szF0GqkEPSiDdbBiLLdKRRIz4Q%3D%3D";
-
-  try {
-    const parsed = parseAddress(address);
-    const searchAddress = address.replace(/-/g, " ");
-
-    // 공공데이터포털 주소-좌표 변환 API (예시)
-    // 실제 API 엔드포인트는 공공데이터포털에서 확인 필요
-    const response = await fetch(
-      `https://apis.data.go.kr/B552584/EvCharger/getChargerInfo?serviceKey=${API_KEY}&numOfRows=1&pageNo=1&dataType=JSON&addr=${encodeURIComponent(
-        searchAddress
-      )}`
-    );
-
-    // 위 API는 예시이며, 실제로는 행정구역 좌표 API를 사용해야 함
-    // 대안: 시도/시군구별 대표 좌표 사용
-    return getDefaultCoordinates(address);
-  } catch (error) {
-    console.error("좌표 가져오기 실패:", error);
-    return getDefaultCoordinates(address);
-  }
-};
-
-// 시도/시군구별 대표 좌표 (공공데이터포털 API가 없을 경우 사용)
+// 시도/시군구별 대표 좌표 매핑
 const getDefaultCoordinates = (
   address: string
 ): { lat: number; lon: number } => {
@@ -151,7 +122,6 @@ export const searchLocations = async (query: string): Promise<Location[]> => {
   const addressesToProcess = matchedAddresses.slice(0, 10);
 
   // 2단계: 매칭된 주소들에 대해 좌표 가져오기
-  // 공공데이터포털 API를 사용하거나, 빠른 처리를 위해 대표 좌표 사용
   const locations: Location[] = addressesToProcess.map((address) => {
     const parsed = parseAddress(address);
 
@@ -161,13 +131,6 @@ export const searchLocations = async (query: string): Promise<Location[]> => {
       // 대표 좌표 사용 (빠른 처리)
       coords = getDefaultCoordinates(address);
       coordinatesCache.set(address, coords);
-
-      // 비동기로 공공데이터포털 API 호출하여 정확한 좌표 업데이트 (선택사항)
-      // getCoordinatesFromPublicAPI(address).then(updatedCoords => {
-      //   if (updatedCoords) {
-      //     coordinatesCache.set(address, updatedCoords);
-      //   }
-      // });
     }
 
     return {
